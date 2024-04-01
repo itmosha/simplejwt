@@ -9,15 +9,14 @@ import (
 
 // JWTClient represents a JWT client which can be used to perform actions on JWT tokens.
 type JWTClient struct {
-	// secretKey is the secret key used for signing and verifying JWT tokens.
-	secretKey string
-
 	// options is the options for setting up the JWT client.
 	Options *JWTOptions
+	// secretKey is the secret key used for signing and verifying JWT tokens.
+	secretKey []byte
 }
 
 // NewJWTClient creates a new JWT client with the given options.
-func NewJWTClient(secretKey string, opts *JWTOptions) *JWTClient {
+func NewJWTClient(secretKey []byte, opts *JWTOptions) *JWTClient {
 	// set up default options
 	if opts == nil {
 		opts = &JWTOptions{AccessTTL: DefaultAccessTTL, RefreshTTL: DefaultRefreshTTL, SigningMethod: jwt.SigningMethodHS256}
@@ -51,7 +50,7 @@ func (client *JWTClient) CreateTokenPair(claims map[string]interface{}) (tp *Tok
 	atClaims["exp"] = time.Now().Add(time.Duration(client.Options.AccessTTL) * time.Second).Unix()
 	atClaims["iat"] = time.Now().Unix()
 
-	accessToken, err := at.SignedString([]byte(client.secretKey))
+	accessToken, err := at.SignedString(client.secretKey)
 	if err != nil {
 		return
 	}
@@ -62,7 +61,7 @@ func (client *JWTClient) CreateTokenPair(claims map[string]interface{}) (tp *Tok
 	rtClaims["exp"] = time.Now().Add(time.Duration(client.Options.RefreshTTL) * time.Second).Unix()
 	rtClaims["iat"] = time.Now().Unix()
 
-	refreshToken, err := rt.SignedString([]byte(client.secretKey))
+	refreshToken, err := rt.SignedString(client.secretKey)
 	if err != nil {
 		return
 	}
@@ -75,7 +74,7 @@ func (client *JWTClient) CreateTokenPair(claims map[string]interface{}) (tp *Tok
 // ExtractClaims extracts the claims from the given token string.
 func (client *JWTClient) extractClaims(token string) (claims jwt.MapClaims, err error) {
 	_, err = jwt.ParseWithClaims(token, &claims, func(token *jwt.Token) (interface{}, error) {
-		return []byte(client.secretKey), nil
+		return client.secretKey, nil
 	})
 	if err != nil {
 		var validationError *jwt.ValidationError
