@@ -39,12 +39,12 @@ func NewJWTClient(secretKey []byte, opts *JWTOptions) *JWTClient {
 }
 
 // CreateTokenPair creates a new access and refresh token pair for the given claims.
-func (client *JWTClient) CreateTokenPair(claims map[string]interface{}) (tp *TokenPair, err error) {
+func (client *JWTClient) CreateTokenPair(accessTokenClaims, refreshTokenClaims map[string]interface{}) (tp *TokenPair, err error) {
 
 	// create access token
 	at := jwt.New(client.Options.SigningMethod)
 	atClaims := at.Claims.(jwt.MapClaims)
-	for k, v := range claims {
+	for k, v := range accessTokenClaims {
 		atClaims[k] = v
 	}
 	atClaims["exp"] = time.Now().Add(time.Duration(client.Options.AccessTTL) * time.Second).Unix()
@@ -58,6 +58,9 @@ func (client *JWTClient) CreateTokenPair(claims map[string]interface{}) (tp *Tok
 	// create refresh token
 	rt := jwt.New(client.Options.SigningMethod)
 	rtClaims := rt.Claims.(jwt.MapClaims)
+	for k, v := range refreshTokenClaims {
+		rtClaims[k] = v
+	}
 	rtClaims["exp"] = time.Now().Add(time.Duration(client.Options.RefreshTTL) * time.Second).Unix()
 	rtClaims["iat"] = time.Now().Unix()
 
@@ -97,7 +100,7 @@ func (client *JWTClient) extractClaims(token string) (claims jwt.MapClaims, err 
 
 // RefreshTokenPair refreshes the access and refresh token pair for the given claims.
 // New token pair is created from provided claims, not from the old token pair in case some payload fields were changed.
-func (client *JWTClient) RefreshTokenPair(tp *TokenPair, claims map[string]interface{}) (newTp *TokenPair, err error) {
+func (client *JWTClient) RefreshTokenPair(tp *TokenPair, accessTokenClaims, refreshTokenClaims map[string]interface{}) (newTp *TokenPair, err error) {
 
 	// check that access token is valid
 	_, err = client.extractClaims(tp.AccessToken)
@@ -112,6 +115,6 @@ func (client *JWTClient) RefreshTokenPair(tp *TokenPair, claims map[string]inter
 	if err != nil {
 		return
 	}
-	newTp, err = client.CreateTokenPair(claims)
+	newTp, err = client.CreateTokenPair(accessTokenClaims, refreshTokenClaims)
 	return
 }
