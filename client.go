@@ -47,8 +47,11 @@ func (client *JWTClient) CreateTokenPair(accessTokenClaims, refreshTokenClaims m
 	for k, v := range accessTokenClaims {
 		atClaims[k] = v
 	}
-	atClaims["exp"] = time.Now().Add(time.Duration(client.Options.AccessTTL) * time.Second).Unix()
-	atClaims["iat"] = time.Now().Unix()
+
+	atExp := time.Now().Add(time.Duration(client.Options.AccessTTL) * time.Second).Unix()
+	atIat := time.Now().Unix()
+	atClaims["exp"] = atExp
+	atClaims["iat"] = atIat
 
 	accessToken, err := at.SignedString(client.secretKey)
 	if err != nil {
@@ -61,8 +64,10 @@ func (client *JWTClient) CreateTokenPair(accessTokenClaims, refreshTokenClaims m
 	for k, v := range refreshTokenClaims {
 		rtClaims[k] = v
 	}
-	rtClaims["exp"] = time.Now().Add(time.Duration(client.Options.RefreshTTL) * time.Second).Unix()
-	rtClaims["iat"] = time.Now().Unix()
+	rtExp := time.Now().Add(time.Duration(client.Options.RefreshTTL) * time.Second).Unix()
+	rtIat := time.Now().Unix()
+	rtClaims["exp"] = rtExp
+	rtClaims["iat"] = rtIat
 
 	refreshToken, err := rt.SignedString(client.secretKey)
 	if err != nil {
@@ -70,7 +75,18 @@ func (client *JWTClient) CreateTokenPair(accessTokenClaims, refreshTokenClaims m
 	}
 
 	// create token pair
-	tp = &TokenPair{AccessToken: accessToken, RefreshToken: refreshToken}
+	tp = &TokenPair{
+		AccessToken: Token{
+			Token: accessToken,
+			Exp:   atExp,
+			Iat:   atIat,
+		},
+		RefreshToken: Token{
+			Token: refreshToken,
+			Exp:   rtExp,
+			Iat:   rtIat,
+		},
+	}
 	return
 }
 
@@ -103,7 +119,7 @@ func (client *JWTClient) extractClaims(token string) (claims jwt.MapClaims, err 
 func (client *JWTClient) RefreshTokenPair(tp *TokenPair, accessTokenClaims, refreshTokenClaims map[string]interface{}) (newTp *TokenPair, err error) {
 
 	// check that access token is valid
-	_, err = client.extractClaims(tp.AccessToken)
+	_, err = client.extractClaims(tp.AccessToken.Token)
 	if errors.Is(err, ErrTokenExpired) {
 		err = nil
 	} else if err != nil {
@@ -111,7 +127,7 @@ func (client *JWTClient) RefreshTokenPair(tp *TokenPair, accessTokenClaims, refr
 	}
 
 	// check that refresh token is valid and not expired
-	_, err = client.extractClaims(tp.RefreshToken)
+	_, err = client.extractClaims(tp.RefreshToken.Token)
 	if err != nil {
 		return
 	}

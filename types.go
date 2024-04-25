@@ -11,8 +11,15 @@ const (
 
 // TokenPair represents a JWT token pair (access and refresh tokens) used for authentication.
 type TokenPair struct {
-	AccessToken  string
-	RefreshToken string
+	AccessToken  Token
+	RefreshToken Token
+}
+
+// Token represent a JWT token with its expiration time and issued time.
+type Token struct {
+	Token string
+	Exp   int64
+	Iat   int64
 }
 
 // JWTOptions represents options for setting up the JWT client.
